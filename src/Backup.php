@@ -41,10 +41,10 @@ class Backup
             switch ($database['driver']) {
                 case 'mysql':
                     $command = sprintf(
-                        'mysqldump -h%s -u%s -p%s %s > %s',
+                        'mysqldump -h%s -u%s %s %s > %s',
                         escapeshellarg($database['host']),
                         escapeshellarg($database['username']),
-                        escapeshellarg($database['password']),
+                        $database['password'] ? '-p' . escapeshellarg($database['password']) : '',
                         escapeshellarg($database['database']),
                         escapeshellarg($filePath)
                     );
@@ -133,7 +133,7 @@ class Backup
             }
 
             $to = config_item('backup_email');
-            $project_name = str_replace(' ', '-', strtolower(config_item('backup_project_name')));
+            $project_name = config_item('backup_project_name');
 
             $subject = $project_name . ' Database Backup | ' . date('Y-m-d');
             $message = $project_name . ' Database backup attached. Date: ' . date('Y-m-d_H-i-s');
