@@ -8,7 +8,7 @@ A Laravel and CI package for daily database backups sent via email
 You can install the package via Composer:
 
 ```bash
-composer require basantsd/laravel-ci-db-backup
+composer require basantsd/db-backup-laravel-ci
 ```
 
 ## Configuration
