@@ -83,26 +83,35 @@ class Backup
 
     protected function sendBackupViaEmail($filePath)
     {
-        $to = config('backup.email');
-        $subject = 'Daily Database Backup';
-        $message = 'Database backup attached.';
-        $headers = "From: no-reply@example.com\r\n";
-        $headers .= "MIME-Version: 1.0\r\n";
-        $headers .= "Content-Type: multipart/mixed; boundary=\"boundary\"\r\n";
 
-        $content = chunk_split(base64_encode(file_get_contents($filePath)));
+        try {
+            $to = config('backup.email');
+            $project_name = config('app.name');
 
-        $body = "--boundary\r\n";
-        $body .= "Content-Type: text/plain; charset=ISO-8859-1\r\n";
-        $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
-        $body .= chunk_split(base64_encode($message));
-        $body .= "--boundary\r\n";
-        $body .= "Content-Type: application/octet-stream; name=\"" . basename($filePath) . "\"\r\n";
-        $body .= "Content-Transfer-Encoding: base64\r\n";
-        $body .= "Content-Disposition: attachment; filename=\"" . basename($filePath) . "\"\r\n\r\n";
-        $body .= $content . "\r\n";
-        $body .= "--boundary--";
+            $subject = $project_name . ' Database Backup | ' . date('Y-m-d');
+            $message = $project_name . ' Database backup attached. Date: ' . date('Y-m-d_H-i-s');
+            $headers = "From: no-reply@example.com\r\n";
+            $headers .= "MIME-Version: 1.0\r\n";
+            $headers .= "Content-Type: multipart/mixed; boundary=\"boundary\"\r\n";
 
-        mail($to, $subject, $body, $headers);
+            $content = chunk_split(base64_encode(file_get_contents($filePath)));
+
+            $body = "--boundary\r\n";
+            $body .= "Content-Type: text/plain; charset=ISO-8859-1\r\n";
+            $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
+            $body .= chunk_split(base64_encode($message));
+            $body .= "--boundary\r\n";
+            $body .= "Content-Type: application/octet-stream; name=\"" . basename($filePath) . "\"\r\n";
+            $body .= "Content-Transfer-Encoding: base64\r\n";
+            $body .= "Content-Disposition: attachment; filename=\"" . basename($filePath) . "\"\r\n\r\n";
+            $body .= $content . "\r\n";
+            $body .= "--boundary--";
+
+            mail($to, $subject, $body, $headers);
+        } catch (Exception $e) {
+            // Log the exception details
+            error_log('Error during backup or email sending: ' . $e->getMessage());
+            // Re-throw the exception if necessary or handle it as per your application's requirement
+        }
     }
 }
