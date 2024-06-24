@@ -1,0 +1,31 @@
+{
+    "name": "basantsd/db-backup-laravel-ci",
+    "description": "A Laravel and CI package for daily database backups sent via email",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Basant Singh Dobal",
+            "email": "sbasant12345@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.2.5",
+        "illuminate/support": "^6.0|^7.0|^8.0|^9.0|^10.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0"
+    },    
+    "autoload": {
+        "psr-4": {
+            "YourNamespace\\Backup\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Basantsd\\Backup\\Laravel\\BackupServiceProvider"
+            ]
+        }
+    }
+}
