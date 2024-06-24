@@ -26,7 +26,7 @@ class Backup
     protected function createBackup()
     {
         try {
-            $project_name = config('backup.project_name');
+            $project_name = str_replace(' ', '-', strtolower(config('backup.project_name')));
             $fileName = $project_name . '_backup_' . date('Y-m-d_H-i-s') . '.sql';
             $filePath = sys_get_temp_dir() . '/' . $fileName;
 
@@ -35,7 +35,7 @@ class Backup
             switch ($database['driver']) {
                 case 'mysql':
                     $command = sprintf(
-                        'mysqldump -h%s -u%s -p%s %s > %s',
+                        'mysqldump --column-statistics=0 -h%s -u%s -p%s %s > %s',
                         $database['host'],
                         $database['username'],
                         $database['password'],
@@ -78,22 +78,25 @@ class Backup
                     throw new Exception('Unsupported database driver: ' . $database['driver']);
             }
 
-            exec($command);
+            exec($command, $output, $returnVar);
+
+            if ($returnVar !== 0) {
+                throw new Exception('Backup command failed: ' . implode("\n", $output));
+            }
 
             return $filePath;
         } catch (Exception $e) {
             // Log the exception details
-            error_log('Error during backup or email sending: ' . $e->getMessage());
+            error_log('Error during backup creation: ' . $e->getMessage());
             // Re-throw the exception if necessary or handle it as per your application's requirement
         }
     }
 
     protected function sendBackupViaEmail($filePath)
     {
-
         try {
             $to = config('backup.email');
-            $project_name = config('backup.project_name');
+            $project_name = str_replace(' ', '-', strtolower(config('backup.project_name')));
 
             $subject = $project_name . ' Database Backup | ' . date('Y-m-d');
             $message = $project_name . ' Database backup attached. Date: ' . date('Y-m-d_H-i-s');
@@ -117,7 +120,7 @@ class Backup
             mail($to, $subject, $body, $headers);
         } catch (Exception $e) {
             // Log the exception details
-            error_log('Error during backup or email sending: ' . $e->getMessage());
+            error_log('Error during backup email sending: ' . $e->getMessage());
             // Re-throw the exception if necessary or handle it as per your application's requirement
         }
     }
