@@ -25,60 +25,67 @@ class Backup
 
     protected function createBackup()
     {
-        $fileName = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
-        $filePath = sys_get_temp_dir() . '/' . $fileName;
+        try {
+            $project_name = config('backup.project_name');
+            $fileName = $project_name . '_backup_' . date('Y-m-d_H-i-s') . '.sql';
+            $filePath = sys_get_temp_dir() . '/' . $fileName;
 
-        $database = config('database.connections.' . config('database.default'));
+            $database = config('database.connections.' . config('database.default'));
 
-        switch ($database['driver']) {
-            case 'mysql':
-                $command = sprintf(
-                    'mysqldump -h%s -u%s -p%s %s > %s',
-                    $database['host'],
-                    $database['username'],
-                    $database['password'],
-                    $database['database'],
-                    $filePath
-                );
-                break;
+            switch ($database['driver']) {
+                case 'mysql':
+                    $command = sprintf(
+                        'mysqldump -h%s -u%s -p%s %s > %s',
+                        $database['host'],
+                        $database['username'],
+                        $database['password'],
+                        $database['database'],
+                        $filePath
+                    );
+                    break;
 
-            case 'pgsql':
-                $command = sprintf(
-                    'PGPASSWORD=%s pg_dump -h %s -U %s %s > %s',
-                    $database['password'],
-                    $database['host'],
-                    $database['username'],
-                    $database['database'],
-                    $filePath
-                );
-                break;
+                case 'pgsql':
+                    $command = sprintf(
+                        'PGPASSWORD=%s pg_dump -h %s -U %s %s > %s',
+                        $database['password'],
+                        $database['host'],
+                        $database['username'],
+                        $database['database'],
+                        $filePath
+                    );
+                    break;
 
-            case 'sqlsrv':
-                $command = sprintf(
-                    'sqlcmd -S %s -U %s -P %s -Q "BACKUP DATABASE %s TO DISK=\'%s\'"',
-                    $database['host'],
-                    $database['username'],
-                    $database['password'],
-                    $database['database'],
-                    $filePath
-                );
-                break;
+                case 'sqlsrv':
+                    $command = sprintf(
+                        'sqlcmd -S %s -U %s -P %s -Q "BACKUP DATABASE %s TO DISK=\'%s\'"',
+                        $database['host'],
+                        $database['username'],
+                        $database['password'],
+                        $database['database'],
+                        $filePath
+                    );
+                    break;
 
-            case 'sqlite':
-                $command = sprintf(
-                    'sqlite3 %s .dump > %s',
-                    database_path($database['database']),
-                    $filePath
-                );
-                break;
+                case 'sqlite':
+                    $command = sprintf(
+                        'sqlite3 %s .dump > %s',
+                        database_path($database['database']),
+                        $filePath
+                    );
+                    break;
 
-            default:
-                throw new Exception('Unsupported database driver: ' . $database['driver']);
+                default:
+                    throw new Exception('Unsupported database driver: ' . $database['driver']);
+            }
+
+            exec($command);
+
+            return $filePath;
+        } catch (Exception $e) {
+            // Log the exception details
+            error_log('Error during backup or email sending: ' . $e->getMessage());
+            // Re-throw the exception if necessary or handle it as per your application's requirement
         }
-
-        exec($command);
-
-        return $filePath;
     }
 
     protected function sendBackupViaEmail($filePath)
