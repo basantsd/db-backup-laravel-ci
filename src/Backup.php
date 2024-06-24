@@ -86,7 +86,7 @@ class Backup
 
         try {
             $to = config('backup.email');
-            $project_name = config('app.name');
+            $project_name = config('backup.project_name');
 
             $subject = $project_name . ' Database Backup | ' . date('Y-m-d');
             $message = $project_name . ' Database backup attached. Date: ' . date('Y-m-d_H-i-s');
