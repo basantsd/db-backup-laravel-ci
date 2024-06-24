@@ -10,11 +10,17 @@ class Backup
     {
         try {
             $backupFile = $this->createBackup();
-            $this->sendBackupViaEmail($backupFile);
+
+            if (class_exists('\Illuminate\Support\Facades\Mail')) {
+                $this->sendBackupViaEmailLaravel($backupFile);
+            } elseif (class_exists('\CI_Controller')) {
+                $this->sendBackupViaEmailCodeIgniter($backupFile);
+            } else {
+                throw new Exception('Unsupported framework');
+            }
         } catch (Exception $e) {
             // Log the exception details
             error_log('Error during backup or email sending: ' . $e->getMessage());
-            // Re-throw the exception if necessary or handle it as per your application's requirement
         } finally {
             // Ensure the backup file is removed even if there are exceptions
             if (isset($backupFile) && file_exists($backupFile)) {
@@ -35,42 +41,42 @@ class Backup
             switch ($database['driver']) {
                 case 'mysql':
                     $command = sprintf(
-                        'mysqldump --column-statistics=0 -h%s -u%s -p%s %s > %s',
-                        $database['host'],
-                        $database['username'],
-                        $database['password'],
-                        $database['database'],
-                        $filePath
+                        'mysqldump -h%s -u%s -p%s %s > %s',
+                        escapeshellarg($database['host']),
+                        escapeshellarg($database['username']),
+                        escapeshellarg($database['password']),
+                        escapeshellarg($database['database']),
+                        escapeshellarg($filePath)
                     );
                     break;
 
                 case 'pgsql':
                     $command = sprintf(
                         'PGPASSWORD=%s pg_dump -h %s -U %s %s > %s',
-                        $database['password'],
-                        $database['host'],
-                        $database['username'],
-                        $database['database'],
-                        $filePath
+                        escapeshellarg($database['password']),
+                        escapeshellarg($database['host']),
+                        escapeshellarg($database['username']),
+                        escapeshellarg($database['database']),
+                        escapeshellarg($filePath)
                     );
                     break;
 
                 case 'sqlsrv':
                     $command = sprintf(
                         'sqlcmd -S %s -U %s -P %s -Q "BACKUP DATABASE %s TO DISK=\'%s\'"',
-                        $database['host'],
-                        $database['username'],
-                        $database['password'],
-                        $database['database'],
-                        $filePath
+                        escapeshellarg($database['host']),
+                        escapeshellarg($database['username']),
+                        escapeshellarg($database['password']),
+                        escapeshellarg($database['database']),
+                        escapeshellarg($filePath)
                     );
                     break;
 
                 case 'sqlite':
                     $command = sprintf(
                         'sqlite3 %s .dump > %s',
-                        database_path($database['database']),
-                        $filePath
+                        escapeshellarg(database_path($database['database'])),
+                        escapeshellarg($filePath)
                     );
                     break;
 
@@ -88,40 +94,68 @@ class Backup
         } catch (Exception $e) {
             // Log the exception details
             error_log('Error during backup creation: ' . $e->getMessage());
-            // Re-throw the exception if necessary or handle it as per your application's requirement
+            throw $e; // Re-throw the exception to handle it in the calling function
         }
     }
 
-    protected function sendBackupViaEmail($filePath)
+    protected function sendBackupViaEmailLaravel($filePath)
     {
         try {
+            if (empty($filePath) || !file_exists($filePath)) {
+                throw new ValueError('Path cannot be empty or non-existent');
+            }
+
             $to = config('backup.email');
-            $project_name = str_replace(' ', '-', strtolower(config('backup.project_name')));
+            $project_name = config('backup.project_name');
 
             $subject = $project_name . ' Database Backup | ' . date('Y-m-d');
             $message = $project_name . ' Database backup attached. Date: ' . date('Y-m-d_H-i-s');
-            $headers = "From: no-reply@example.com\r\n";
-            $headers .= "MIME-Version: 1.0\r\n";
-            $headers .= "Content-Type: multipart/mixed; boundary=\"boundary\"\r\n";
 
-            $content = chunk_split(base64_encode(file_get_contents($filePath)));
+            // Use Laravel's Mail facade to send the email
+            \Illuminate\Support\Facades\Mail::raw($message, function ($mail) use ($to, $subject, $filePath) {
+                $mail->to($to)
+                    ->subject($subject)
+                    ->attach($filePath);
+            });
 
-            $body = "--boundary\r\n";
-            $body .= "Content-Type: text/plain; charset=ISO-8859-1\r\n";
-            $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
-            $body .= chunk_split(base64_encode($message));
-            $body .= "--boundary\r\n";
-            $body .= "Content-Type: application/octet-stream; name=\"" . basename($filePath) . "\"\r\n";
-            $body .= "Content-Transfer-Encoding: base64\r\n";
-            $body .= "Content-Disposition: attachment; filename=\"" . basename($filePath) . "\"\r\n\r\n";
-            $body .= $content . "\r\n";
-            $body .= "--boundary--";
-
-            mail($to, $subject, $body, $headers);
         } catch (Exception $e) {
             // Log the exception details
             error_log('Error during backup email sending: ' . $e->getMessage());
-            // Re-throw the exception if necessary or handle it as per your application's requirement
+            throw $e; // Re-throw the exception to handle it in the calling function
+        }
+    }
+
+    protected function sendBackupViaEmailCodeIgniter($filePath)
+    {
+        try {
+            if (empty($filePath) || !file_exists($filePath)) {
+                throw new ValueError('Path cannot be empty or non-existent');
+            }
+
+            $to = config_item('backup_email');
+            $project_name = str_replace(' ', '-', strtolower(config_item('backup_project_name')));
+
+            $subject = $project_name . ' Database Backup | ' . date('Y-m-d');
+            $message = $project_name . ' Database backup attached. Date: ' . date('Y-m-d_H-i-s');
+
+            // Load the CodeIgniter email library
+            $CI =& get_instance();
+            $CI->load->library('email');
+
+            $CI->email->from('no-reply@example.com', 'Backup System');
+            $CI->email->to($to);
+            $CI->email->subject($subject);
+            $CI->email->message($message);
+            $CI->email->attach($filePath);
+
+            if (!$CI->email->send()) {
+                throw new Exception('Mail error: ' . $CI->email->print_debugger());
+            }
+
+        } catch (Exception $e) {
+            // Log the exception details
+            error_log('Error during backup email sending: ' . $e->getMessage());
+            throw $e; // Re-throw the exception to handle it in the calling function
         }
     }
 }
