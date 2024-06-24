@@ -1,6 +1,16 @@
 {
     "name": "basantsd/db-backup-laravel-ci",
     "description": "A Laravel and CI package for daily database backups sent via email",
+    "keywords": [
+        "daily-backup",
+        "laravel ci backup",
+        "database backup"
+    ],
+    "homepage": "https://github.com/basantsd/db-backup-laravel-ci",
+    "support": {
+        "issues": "https://github.com/basantsd/db-backup-laravel-ci/issues",
+        "source": "https://github.com/basantsd/db-backup-laravel-ci"
+    },
     "type": "library",
     "license": "MIT",
     "authors": [
@@ -18,7 +28,7 @@
     },    
     "autoload": {
         "psr-4": {
-            "YourNamespace\\Backup\\": "src/"
+            "Basantsd\\Backup\\": "src/"
         }
     },
     "extra": {
