@@ -1,83 +1,63 @@
 # db-backup-laravel-ci
-A Laravel and CI package for daily database backups sent via email
 
+A framework agnostic package to automatically back up your database and send the result via email. It supports both Laravel and CodeIgniter applications.
 
+## Features
+- Works with MySQL, PostgreSQL, SQL Server and SQLite databases
+- Creates a SQL dump and compresses it using `gzip`
+- Emails the compressed dump on a daily schedule
+- If the gzipped file exceeds the configured size limit (25&nbsp;MB by default) it is saved to disk and a download path is emailed instead
 
 ## Installation
-
-You can install the package via Composer:
-
 ```bash
 composer require basantsd/db-backup-laravel-ci
 ```
 
-## Configuration
-
-Add the following to your .env file:
-
-```
+## Environment variables
+Add these entries to your `.env` file:
+```env
 BACKUP_EMAIL=your-email@example.com
 BACKUP_TOKEN=your-secret-token
 APP_NAME="project-name"
+# Optional: override the maximum attachment size in bytes (default 26214400)
+BACKUP_MAX_ATTACHMENT_SIZE=26214400
 ```
 
-### Laravel Configuration
+## Laravel setup
+1. Publish the configuration file:
+   ```bash
+   php artisan vendor:publish --provider="Basantsd\\Backup\\Laravel\\BackupServiceProvider" --tag="config"
+   ```
+2. Schedule the command in `app/Console/Kernel.php`:
+   ```php
+   protected function schedule(Schedule $schedule)
+   {
+       $schedule->command('backup:daily', ['--token' => config('backup.token')])->daily();
+   }
+   ```
 
-You can publish the configuration file:
-
-```bash
-
-php artisan vendor:publish --provider="Basantsd\\Backup\\Laravel\\BackupServiceProvider" --tag="config"
-```
-
-This will create a config/backup.php file where you can configure the email address and token.
-
-Add the following to your ```app/Console/Kernel.php:```
-
-```php
-
-protected function schedule(Schedule $schedule)
-{
-    $schedule->command('backup:daily', ['--token' => config('backup.token')])->daily();
-}
-```
-
-### CodeIgniter Configuration
-
-Load the BackupController in your ```routes.php```:
-
-```php
-$route['backup/daily'] = 'BackupController/daily';
-```
-
-Ensure to pass the token in the header when accessing the URL:
-
-```bash
-curl -H "X-Backup-Token: your-secret-token" http://your-domain.com/backup/daily
-```
+## CodeIgniter setup
+1. Add a route to `routes.php`:
+   ```php
+   $route['backup/daily'] = 'BackupController/daily';
+   ```
+2. Call the route with the token header:
+   ```bash
+   curl -H "X-Backup-Token: your-secret-token" http://your-domain.com/backup/daily
+   ```
 
 ## Usage
 ### Laravel
-
-Run the following command to perform a daily backup:
-
+Run the artisan command:
 ```bash
 php artisan backup:daily --token=your-secret-token
 ```
 
 ### CodeIgniter
+Access the `/backup/daily` URL with the header shown above.
 
-Access the backup URL with the token in the header to perform a daily backup:
-
-```bash
-curl -H "X-Backup-Token: your-secret-token" http://your-domain.com/backup/daily
-```
+## Handling large backups
+Many email providers reject attachments larger than 20&ndash;25&nbsp;MB. When the compressed backup exceeds `BACKUP_MAX_ATTACHMENT_SIZE`, this package saves the file to a `backups` directory (`storage/app/backups` for Laravel or `APPPATH/backups` for CodeIgniter) and sends an email containing the path to download the backup manually.
 
 ## License
-
-The MIT License (MIT). Please see the License File for more information.
-
-csharp
-
-
-This `README.md` file should now render correctly on GitHub and other markdown viewers, with all sections properly formatted and no breaks in the code sections.
+The MIT License (MIT). Please see the LICENSE file for more information.
